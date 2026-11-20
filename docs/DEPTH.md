@@ -35,6 +35,18 @@
 
 输入=采纳原始行+隔离行+空行+同值重复行+重复表头。计价版本总额与生效票总额分别展示，避免把更正前后重复求和。最终应付=已付+待付，负待付为退款。
 
+## 晚场补传子系统
+
+独立于七模块流水线：补传是增量事件流，不走整批重算。`app/session_logic.py` 纯函数派生（规范化、逐票裁决、水位、差额），`app/session_store.py` 幂等接入与原子发布，`app/session_web.py` 路由，`app/session_demo.py` 演示剧本，页面 `app/templates/session.html`，测试 `tests/test_session.py`。
+
+| 风险 | 处理 | 测试 |
+|---|---|---|
+| 终端重试补传重复记账 | （场次，终端，批次号）唯一+内容哈希，重试原样确认 | `test_retry_same_batch_adds_no_transactions` |
+| 回放把同一票卖成两笔 | 同内容跨终端去重计一笔；内容不一致挂起不并入 | `test_identical_cross_terminal_echo_merges_once`、`test_cross_terminal_conflict_withdraws_on_next_publish` |
+| 缺称重依据混入付款 | 缺毛皮重或毛重小于皮重挂起，补证后并入 | `test_missing_evidence_held_until_supplemented` |
+| 发布失败丢旧版 | 单事务提交、版本只增不改，失败回滚 | `test_publish_failure_keeps_old_version` |
+| 原始证据丢失 | raw_transactions 只增不改，挂起与重复同样保留 | `test_same_seq_different_content_rejected_and_evidence_kept` |
+
 ## 已知不覆盖
 
 无称重设备实时接入，采用现场导出文件。无支付执行，只生成可复核结算证据。

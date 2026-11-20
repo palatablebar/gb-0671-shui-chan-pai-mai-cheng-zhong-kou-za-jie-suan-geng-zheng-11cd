@@ -7,6 +7,7 @@ from app.config import ROOT, META, MODULES, DB_PATH
 from app.errors import BusinessError
 from app.engine import evaluate
 from app import store
+from app import session_web
 from app.archive import serialize
 
 @asynccontextmanager
@@ -48,5 +49,6 @@ def review(run_id:str,payload:dict=Body(...)):
 def export(run_id:str):
     result=store.get(DB_PATH,run_id)
     return Response(serialize(result),media_type='application/zip',headers={'Content-Disposition':f'attachment; filename="{run_id}.zip"'})
+app.include_router(session_web.router)
 for key in MODULES:
     app.include_router(import_module(f'app.modules.{key}.handler').router)
